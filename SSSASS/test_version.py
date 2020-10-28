@@ -86,6 +86,7 @@ def predict(params,inputs,s):
             outputs = np.matmul(W,activations)
             activations = outputs
         elif count == 1:
+
             K = np.matmul(W,inputs)
             outputs = np.transpose(K)*activations
 
@@ -94,17 +95,19 @@ def predict(params,inputs,s):
             d_k = s
                 #outputs.size(-1)
             a = (1 / np.sqrt(d_k)) * outputs
-            v = a[np.triu_indices(a.shape[0], k=0)]
-            m=(d_k, d_k)
-            X = np.zeros(m)
-            jax.ops.index_update(X,np.triu_indices(X.shape[0], k=0), v)
+            #v = a[np.triu_indices(a.shape[0], k=0)]
+            #m=(d_k, d_k)
+            #iu1 = np.triu_indices()
+            #X = np.zeros(m)
+            #jax.ops.index_update(X,np.triu_indices(X.shape[0], k=0), v)
 
-            activations = softmax(X, axis=0)
+            #activations = jax.nn.softmax(X, axis=-1)
+            activations = jax.nn.softmax(a, axis=-1)
         else:
             V = np.matmul(W,inputs)
             outputs = np.matmul(V,activations)
             activations = outputs
-        count +=1
+        count += 1
 
     return outputs
 
