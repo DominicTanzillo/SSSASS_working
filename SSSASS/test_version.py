@@ -18,9 +18,16 @@ s = 10 #Define Window Size
 ### Param Functions
 
 def three_W(key,s):
-    WQ = generate_W(key,s)
-    WK = generate_W(key,s)
-    WV = generate_W(key,s)
+
+    key1, key2, key3 = jax.random.randint(key,(3,),1,10)
+
+    key1 = random.PRNGKey(key1)
+    key2 = random.PRNGKey(key2)
+    key3 = random.PRNGKey(key3)
+
+    WQ = generate_W(key1,s)
+    WK = generate_W(key2,s)
+    WV = generate_W(key3,s)
 
     return WQ, WK, WV
 
@@ -124,10 +131,18 @@ init_params = three_W(key,s)
 
 opt_init, opt_update, get_params = optimizers.adam(learning_rate)
 
-# @jit # when using Jit get an error?
+opt_state = opt_init(init_params)
+
+#@jit # when using Jit get an error?
 def update(_, i, opt_state, batch,s):
-  params = get_params(opt_state)
-  return opt_update(i, grad(loss)(params, batch,s), opt_state)
+    params = get_params(opt_state)
+    opt_state = opt_update(i, grad(loss)(params, batch,s), opt_state)
+    return opt_state
+
+def step(step, opt_state, batch,s):
+  value, grads = jax.value_and_grad(loss)(get_params(opt_state),batch,s)
+  opt_state = opt_update(step, grads, opt_state)
+  return value, opt_state
 
 
 ### Get Batches
@@ -166,9 +181,11 @@ num_epochs = 1
 
 key = random.PRNGKey(123)
 opt_state = opt_init(init_params)
+print(opt_state)
 itercount = itertools.count()
 for i in range(num_batches):
-  opt_state= update(key, next(itercount), opt_state, batches[i],s)
+    for j in range(num_steps):
+        opt_state= update(key, next(itercount), opt_state, batches[i],s)
 params = get_params(opt_state)
 
 print(params)
