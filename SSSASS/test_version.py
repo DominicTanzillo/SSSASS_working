@@ -121,7 +121,7 @@ def loss_function(Y,X_prev,params,s):
 
 ### Adam Gradients
 
-learning_rate = .0001
+learning_rate = .01
 
 num_steps = 100
 
@@ -134,10 +134,11 @@ opt_init, opt_update, get_params = optimizers.adam(learning_rate)
 opt_state = opt_init(init_params)
 
 #@jit # when using Jit get an error?
-def update(_, i, opt_state, batch,s):
+def update(step, opt_state, batch,s):
     params = get_params(opt_state)
-    opt_state = opt_update(i, grad(loss)(params, batch,s), opt_state)
-    return opt_state
+    value, grad = jax.value_and_grad(loss)(params, batch, s)
+    opt_state = opt_update(step, grad, opt_state)
+    return value, opt_state
 
 def step(step, opt_state, batch,s):
   value, grads = jax.value_and_grad(loss)(get_params(opt_state),batch,s)
@@ -182,10 +183,10 @@ num_epochs = 1
 key = random.PRNGKey(123)
 opt_state = opt_init(init_params)
 print(opt_state)
-itercount = itertools.count()
+# itercount = itertools.count()
 for i in range(num_batches):
-    for j in range(num_steps):
-        opt_state= update(key, next(itercount), opt_state, batches[i],s)
+    for step in range(num_steps):
+        value, opt_state = update(step, opt_state, batches[i],s)
 params = get_params(opt_state)
 
 print(params)
