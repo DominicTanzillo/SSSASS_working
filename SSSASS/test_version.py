@@ -17,15 +17,15 @@ s = 10 #Define Window Size
 
 ### Param Functions
 
-def three_W(s):
-    WQ = generate_W(s)
-    WK = generate_W(s)
-    WV = generate_W(s)
+def three_W(key,s):
+    WQ = generate_W(key,s)
+    WK = generate_W(key,s)
+    WV = generate_W(key,s)
 
     return WQ, WK, WV
 
-def generate_W(s):
-    W = numpy.random.normal(0,1,size=(s,s))
+def generate_W(key,s):
+    W = jax.random.normal(key,shape=(s,s))
     return W
 
 ### Math Formulae
@@ -50,7 +50,7 @@ def calculate_Z(X_prev,params):
 
     WQ = params[0]
     WK = params[1]
-    WV = params [2]
+    WV = params[2]
 
     Q = WQ * X_prev
     K = WK * X_prev
@@ -62,7 +62,7 @@ def calculate_Z(X_prev,params):
 
     return Z
 
-def predict(params,inputs):
+def predict(params,inputs,s):
     """
     :param params: [WQ, WK, WV] in order
     :param inputs: X_prev
@@ -84,11 +84,13 @@ def predict(params,inputs):
 
             ### Attempting to Apply Attention Metric Here
 
-            d_k = outputs.size(-1)
+            d_k = s
+                #outputs.size(-1)
             a = (1 / np.sqrt(d_k)) * outputs
             v = a[np.triu_indices(a.shape[0], k=0)]
-            X = np.zeros((d_k, d_k))
-            X[np.triu_indices(X.shape[0], k=0)] = v
+            m=(d_k, d_k)
+            X = np.zeros(m)
+            jax.ops.index_update(X,np.triu_indices(X.shape[0], k=0), v)
 
             activations = softmax(X, axis=0)
         else:
@@ -99,15 +101,15 @@ def predict(params,inputs):
 
     return outputs
 
-def loss(params, batch):
+def loss(params, batch,s):
   inputs, targets = batch
-  Z = predict(params, inputs)
-  return np.linalg.norm((targets - Z), ord=2, axis=1)
+  Z = predict(params, inputs,s)
+  return np.linalg.norm((targets - Z), ord=2)
 
 
-def loss_function(Y,X_prev,params):
-    Z = calculate_Z(X_prev,params)
-    return np.linalg.norm((Y-Z), ord=2, axis=1)
+def loss_function(Y,X_prev,params,s):
+    Z = calculate_Z(X_prev,params,s)
+    return np.linalg.norm((Y-Z), ord=2)
 
 
 ### Adam Gradients
@@ -116,14 +118,16 @@ learning_rate = .0001
 
 num_steps = 100
 
-init_params = three_W(s)
+key = random.PRNGKey(123)
+
+init_params = three_W(key,s)
 
 opt_init, opt_update, get_params = optimizers.adam(learning_rate)
 
-@jit
-def update(_, i, opt_state, batch):
+# @jit # when using Jit get an error?
+def update(_, i, opt_state, batch,s):
   params = get_params(opt_state)
-  return opt_update(i, grad(loss)(params, batch), opt_state)
+  return opt_update(i, grad(loss)(params, batch,s), opt_state)
 
 
 ### Get Batches
@@ -132,8 +136,8 @@ num_batches = 20
 rawdata = h5py.File('ViSAPy_somatraces.h5','r')
 
 n1 = rawdata.get('data')
-n1 = numpy.array(n1)
-n1 = numpy.transpose(n1)
+n1 = np.array(n1)
+n1 = np.transpose(n1)
 
 
 def get_batch(source,size,index=27000):
@@ -164,10 +168,10 @@ key = random.PRNGKey(123)
 opt_state = opt_init(init_params)
 itercount = itertools.count()
 for i in range(num_batches):
-  opt_state= update(key, next(itercount), opt_state, batches[i])
+  opt_state= update(key, next(itercount), opt_state, batches[i],s)
 params = get_params(opt_state)
 
-
+print(params)
 
 print("Done")
 
