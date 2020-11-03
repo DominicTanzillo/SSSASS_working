@@ -17,19 +17,12 @@ s = 10 #Define Window Size
 
 ### Param Functions
 
-def three_W(key,s):
+def random_layer_params(m, n, key, scale=1e-2):
+  return scale * random.normal(key, (n, m))
 
-    key1, key2, key3 = jax.random.randint(key,(3,),1,10)
-
-    key1 = random.PRNGKey(key1)
-    key2 = random.PRNGKey(key2)
-    key3 = random.PRNGKey(key3)
-
-    WQ = generate_W(key1,s)
-    WK = generate_W(key2,s)
-    WV = generate_W(key3,s)
-
-    return WQ, WK, WV
+def three_W(key,sizes):
+    keys = random.split(key, len(sizes))
+    return [random_layer_params(m, n, k) for m, n, k in zip(sizes[:-1], sizes[1:], keys)]
 
 def generate_W(key,s):
     W = jax.random.normal(key,shape=(s,s))
@@ -111,9 +104,32 @@ def predict(params,inputs,s):
 
     return outputs
 
+def predict_1(params,inputs,s):
+    """
+    :param params: [WQ, WK, WV] in order
+    :param inputs: X_prev
+    :return: Z - guess of next elements
+
+    This is an attempt to match the formulae for a predict function.
+
+    """
+
+    activations = inputs
+    [WQ, WK, WV] = params
+    outputs = np.matmul(WQ,activations)
+    K = np.matmul(WK, inputs)
+    activations = np.transpose(K) * outputs
+    outputs = (1 / np.sqrt(s)) * activations
+    outputs = jax.nn.softmax(outputs, axis=-1)
+    V = np.matmul(WV, inputs)
+    outputs = np.matmul(V, outputs)
+
+    return outputs
+
+
 def loss(params, batch,s):
   inputs, targets = batch
-  Z = predict(params, inputs,s)
+  Z = predict_1(params, inputs,s)
   return np.linalg.norm((targets - Z), ord=2)
 
 
@@ -130,7 +146,9 @@ num_steps = 100
 
 key = random.PRNGKey(123)
 
-init_params = three_W(key,s)
+sizes = [s,s,s,s]
+
+init_params = three_W(key,sizes)
 
 opt_init, opt_update, get_params = optimizers.adam(learning_rate)
 
