@@ -18,7 +18,6 @@ def init_network_params(sizes, key):
   keys = random.split(key, len(sizes))
   return [random_layer_params(m, n, k) for m, n, k in zip(sizes[:-1], sizes[1:], keys)]
 
-
 ## Prediction and Loss Functions
 
 def predict(params,inputs):
@@ -28,3 +27,5 @@ def loss(params, batch):
   inputs, targets = batch
   Z = predict(params, inputs)
   return np.linalg.norm((targets - Z), ord=2)
+
+
